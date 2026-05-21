@@ -38,12 +38,15 @@ export default function TopicDetailPage() {
 
   const createClient = async () => {
     if (!newClientName.trim()) return
-    await api.post('/clients', { name: newClientName, contactEmail: newClientEmail, phone: newClientPhone })
+    const res = await api.post<Client>('/clients', { name: newClientName, contactEmail: newClientEmail, phone: newClientPhone })
+    const newClient: ClientWithPayments = { ...res.data, payments: [] }
+    setClients(prev => [newClient, ...prev])
+    setExpandedClient(newClient.id)
+    setShowPaymentForm(newClient.id)
     setShowNewClient(false)
     setNewClientName('')
     setNewClientEmail('')
     setNewClientPhone('')
-    load()
   }
 
   useEffect(() => { load() }, [id])

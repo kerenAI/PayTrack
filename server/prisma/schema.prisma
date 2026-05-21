@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  topics               Topic[]
+  clients              Client[]
+  payments             Payment[]
+  paymentTransactions  PaymentTransaction[]
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  contactEmail String?
+  phone        String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments             Payment[]
+  paymentTransactions  PaymentTransaction[]
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  clientId    String
+  topicId     String
+  userId      String
+  totalAmount Decimal       @db.Decimal(12, 2)
+  dueDate     DateTime?
+  description String?
+  isRecurring Boolean       @default(false)
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  client       Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  topic        Topic                @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id        String              @id @default(cuid())
+  paymentId String?
+  clientId  String
+  userId    String
+  amount    Decimal             @db.Decimal(12, 2)
+  type      TransactionType
+  date      DateTime
+  notes     String?
+  createdAt DateTime            @default(now())
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  client  Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PREPAID
+  PAID
+  OVERDUE
+  CREDITED
+}
+
+enum TransactionType {
+  PAYMENT
+  CREDIT
+  PREPAYMENT
+  PREPAYMENT_APPLY
+}

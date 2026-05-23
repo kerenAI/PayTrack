@@ -12,20 +12,9 @@ import PaymentsPage from './pages/PaymentsPage'
 import PaymentDetailPage from './pages/PaymentDetailPage'
 import ReportsPage from './pages/ReportsPage'
 
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-        <span className="text-slate-400 text-sm">טוען...</span>
-      </div>
-    </div>
-  )
-}
-
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
-  if (loading) return <LoadingScreen />
+  if (loading) return null
   return user ? <>{children}</> : <Navigate to="/login" replace />
 }
 

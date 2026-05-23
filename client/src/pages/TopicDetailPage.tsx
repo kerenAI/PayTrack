@@ -185,7 +185,10 @@ export default function TopicDetailPage() {
                 <div className="flex items-center gap-3">
                   <div className="text-left">
                     <div className="text-sm font-semibold text-slate-900">{fmt(clientTotal)}</div>
-                    <div className="text-xs text-emerald-600">{fmt(clientPaid)} שולם</div>
+                    {clientPaid > clientTotal
+                      ? <div className="text-xs text-emerald-600">זיכוי {fmt(clientPaid - clientTotal)}</div>
+                      : <div className="text-xs text-emerald-600">{fmt(clientPaid)} שולם</div>
+                    }
                   </div>
                   <button
                     onClick={e => { e.stopPropagation(); openEditClient(client) }}

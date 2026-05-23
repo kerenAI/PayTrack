@@ -151,9 +151,11 @@ export default function PaymentDetailPage() {
           <div className="text-xl font-bold text-emerald-600">{fmt(paid)}</div>
           <div className="text-xs text-slate-500 mt-0.5">שולם</div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <div className={`text-xl font-bold ${remaining > 0 ? 'text-red-600' : 'text-slate-400'}`}>{fmt(remaining)}</div>
-          <div className="text-xs text-slate-500 mt-0.5">נותר</div>
+        <div className={`border rounded-xl p-4 text-center ${remaining < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+          <div className={`text-xl font-bold ${remaining > 0 ? 'text-red-600' : remaining < 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {fmt(Math.abs(remaining))}
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5">{remaining < 0 ? 'זיכוי' : 'נותר'}</div>
         </div>
       </div>
 

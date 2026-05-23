@@ -11,32 +11,44 @@ interface AuthContextType {
   logout: () => Promise<void>
 }
 
+const AUTH_KEY = 'pt_user'
+
+function readCache(): User | null {
+  try { return JSON.parse(localStorage.getItem(AUTH_KEY) ?? 'null') } catch { return null }
+}
+
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(readCache)
+  const [loading, setLoading] = useState(!readCache())
+
+  const applyUser = (u: User | null) => {
+    setUser(u)
+    if (u) localStorage.setItem(AUTH_KEY, JSON.stringify(u))
+    else localStorage.removeItem(AUTH_KEY)
+  }
 
   useEffect(() => {
     api.get('/auth/me')
-      .then(res => setUser(res.data.user))
-      .catch(() => setUser(null))
+      .then(res => applyUser(res.data.user))
+      .catch(() => applyUser(null))
       .finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password })
-    setUser(res.data.user)
+    applyUser(res.data.user)
   }
 
   const register = async (name: string, email: string, password: string) => {
     const res = await api.post('/auth/register', { name, email, password })
-    setUser(res.data.user)
+    applyUser(res.data.user)
   }
 
   const logout = async () => {
     await api.post('/auth/logout')
-    setUser(null)
+    applyUser(null)
   }
 
   return (

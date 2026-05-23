@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowRight, Plus, Users } from 'lucide-react'
+import { ArrowRight, Plus, Users, Pencil } from 'lucide-react'
 import api from '../api'
 import type { Topic, Client, Payment } from '../types'
 import StatusBadge from '../components/StatusBadge'
@@ -24,6 +24,11 @@ export default function TopicDetailPage() {
   const [newClientName, setNewClientName] = useState('')
   const [newClientEmail, setNewClientEmail] = useState('')
   const [newClientPhone, setNewClientPhone] = useState('')
+  const [editingClient, setEditingClient] = useState<ClientWithPayments | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editNotes, setEditNotes] = useState('')
 
   const load = async () => {
     const [topicsRes, clientsRes] = await Promise.all([
@@ -36,9 +41,24 @@ export default function TopicDetailPage() {
     setAllTopics(topicsRes.data)
   }
 
+  const openEditClient = (c: ClientWithPayments) => {
+    setEditingClient(c)
+    setEditName(c.name)
+    setEditEmail(c.contactEmail ?? '')
+    setEditPhone(c.phone ?? '')
+    setEditNotes(c.notes ?? '')
+  }
+
+  const saveEditClient = async () => {
+    if (!editingClient) return
+    await api.put(`/clients/${editingClient.id}`, { name: editName, contactEmail: editEmail, phone: editPhone, notes: editNotes })
+    setEditingClient(null)
+    load()
+  }
+
   const createClient = async () => {
     if (!newClientName.trim()) return
-    const res = await api.post<Client>('/clients', { name: newClientName, contactEmail: newClientEmail, phone: newClientPhone })
+    const res = await api.post<Client>('/clients', { name: newClientName, contactEmail: newClientEmail, phone: newClientPhone, topicId: id })
     const newClient: ClientWithPayments = { ...res.data, payments: [] }
     setClients(prev => [newClient, ...prev])
     setExpandedClient(newClient.id)
@@ -146,27 +166,71 @@ export default function TopicDetailPage() {
           return (
             <div key={client.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               {/* Client header */}
-              <div
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50"
-                onClick={() => setExpandedClient(isExpanded ? null : client.id)}
-              >
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between p-4">
+                <div
+                  className="flex items-center gap-3 flex-1 cursor-pointer"
+                  onClick={() => setExpandedClient(isExpanded ? null : client.id)}
+                >
                   <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm">
                     {client.name.charAt(0)}
                   </div>
                   <div>
                     <div className="font-medium text-slate-900">{client.name}</div>
-                    <div className="text-xs text-slate-400">{client.payments?.length ?? 0} תשלומים בנושא זה</div>
+                    <div className="text-xs text-slate-400">
+                      {client.payments?.length ?? 0} תשלומים
+                      {client.phone && <span className="mr-2">{client.phone}</span>}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="text-left">
                     <div className="text-sm font-semibold text-slate-900">{fmt(clientTotal)}</div>
                     <div className="text-xs text-emerald-600">{fmt(clientPaid)} שולם</div>
                   </div>
-                  <span className="text-slate-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                  <button
+                    onClick={e => { e.stopPropagation(); openEditClient(client) }}
+                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <span className="text-slate-400 text-xs cursor-pointer" onClick={() => setExpandedClient(isExpanded ? null : client.id)}>{isExpanded ? '▲' : '▼'}</span>
                 </div>
               </div>
+
+              {/* Edit client form */}
+              {editingClient?.id === client.id && (
+                <div className="border-t border-indigo-100 bg-indigo-50 p-4 space-y-3">
+                  <h4 className="text-sm font-medium text-slate-700">עריכת לקוח</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">שם *</label>
+                      <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">אימייל</label>
+                      <input value={editEmail} onChange={e => setEditEmail(e.target.value)} dir="ltr" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">טלפון</label>
+                      <input
+                        value={editPhone}
+                        onChange={e => setEditPhone(e.target.value)}
+                        onPaste={e => { e.preventDefault(); setEditPhone(e.clipboardData.getData('text')) }}
+                        dir="ltr"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">הערות</label>
+                      <input value={editNotes} onChange={e => setEditNotes(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={saveEditClient} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">שמור</button>
+                    <button onClick={() => setEditingClient(null)} className="bg-white text-slate-700 px-4 py-2 rounded-lg text-sm hover:bg-slate-100 border border-slate-200">ביטול</button>
+                  </div>
+                </div>
+              )}
 
               {/* Expanded payments */}
               {isExpanded && (

@@ -9,11 +9,13 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const { topicId } = req.query
 
   if (topicId) {
-    // Return clients that have at least one payment in this topic
     const clients = await prisma.client.findMany({
       where: {
         userId: req.userId,
-        payments: { some: { topicId: topicId as string } }
+        OR: [
+          { clientTopics: { some: { topicId: topicId as string } } },
+          { payments: { some: { topicId: topicId as string } } }
+        ]
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -67,7 +69,7 @@ router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
 })
 
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
-  const { name, contactEmail, phone, notes } = req.body
+  const { name, contactEmail, phone, notes, topicId } = req.body
   if (!name) {
     res.status(400).json({ error: 'Name is required' })
     return
@@ -75,6 +77,9 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   const client = await prisma.client.create({
     data: { userId: req.userId!, name, contactEmail, phone, notes }
   })
+  if (topicId) {
+    await prisma.clientTopic.create({ data: { clientId: client.id, topicId } })
+  }
   res.status(201).json(client)
 })
 

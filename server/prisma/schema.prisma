@@ -28,8 +28,9 @@ model Topic {
   color       String   @default("#6366f1")
   createdAt   DateTime @default(now())
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments Payment[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+  clientTopics ClientTopic[]
 }
 
 model Client {
@@ -44,6 +45,7 @@ model Client {
   user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   payments             Payment[]
   paymentTransactions  PaymentTransaction[]
+  clientTopics         ClientTopic[]
 }
 
 model Payment {
@@ -78,6 +80,17 @@ model PaymentTransaction {
   payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   client  Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ClientTopic {
+  clientId  String
+  topicId   String
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  topic  Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, topicId])
 }
 
 enum PaymentStatus {

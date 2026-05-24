@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import type { ReactNode } from 'react'
 import api from '../api'
 import type { User } from '../types'
@@ -11,44 +11,35 @@ interface AuthContextType {
   logout: () => Promise<void>
 }
 
-const AUTH_KEY = 'pt_user'
-
-function readCache(): User | null {
-  try { return JSON.parse(localStorage.getItem(AUTH_KEY) ?? 'null') } catch { return null }
-}
-
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(readCache)
-  const [loading, setLoading] = useState(!readCache())
-
-  const applyUser = (u: User | null) => {
-    setUser(u)
-    if (u) localStorage.setItem(AUTH_KEY, JSON.stringify(u))
-    else localStorage.removeItem(AUTH_KEY)
-  }
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const checked = useRef(false)
 
   useEffect(() => {
+    if (checked.current) return
+    checked.current = true
     api.get('/auth/me')
-      .then(res => applyUser(res.data.user))
-      .catch(() => applyUser(null))
+      .then(res => setUser(res.data.user))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password })
-    applyUser(res.data.user)
+    setUser(res.data.user)
   }
 
   const register = async (name: string, email: string, password: string) => {
     const res = await api.post('/auth/register', { name, email, password })
-    applyUser(res.data.user)
+    setUser(res.data.user)
   }
 
   const logout = async () => {
     await api.post('/auth/logout')
-    applyUser(null)
+    setUser(null)
   }
 
   return (

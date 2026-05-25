@@ -56,6 +56,30 @@ export interface Payment {
   transactions?: PaymentTransaction[]
 }
 
+export interface ClientPayment {
+  id: string
+  clientId: string
+  userId: string
+  amount: string
+  date: string
+  notes?: string
+  createdAt: string
+}
+
+export interface WorkOrder extends Payment {
+  coveredAmount: number
+  coverageRatio: number
+}
+
+export interface ClientWithBalance extends Client {
+  workOrders: WorkOrder[]
+  clientPayments: ClientPayment[]
+  totalOwed: number
+  totalPaid: number
+  balance: number
+  coverageRatio: number
+}
+
 export interface DashboardData {
   totalIncome: number
   thisMonthIncome: number

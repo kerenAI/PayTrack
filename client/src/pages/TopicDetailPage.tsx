@@ -74,10 +74,7 @@ export default function TopicDetailPage() {
   const totalInTopic = clients.reduce((sum, c) =>
     sum + (c.payments ?? []).reduce((s, p) => s + Number(p.totalAmount), 0), 0)
 
-  const paidInTopic = clients.reduce((sum, c) =>
-    sum + (c.payments ?? []).flatMap(p => p.transactions ?? [])
-      .filter(t => t.type === 'PAYMENT' || t.type === 'PREPAYMENT_APPLY')
-      .reduce((s, t) => s + Number(t.amount), 0), 0)
+  const paidInTopic = 0 // balance is now global per client, shown on client detail page
 
   if (!topic) return <div className="text-slate-400 text-sm" dir="rtl">טוען...</div>
 
@@ -156,10 +153,6 @@ export default function TopicDetailPage() {
         )}
 
         {clients.map(client => {
-          const clientPaid = (client.payments ?? [])
-            .flatMap(p => p.transactions ?? [])
-            .filter(t => t.type === 'PAYMENT' || t.type === 'PREPAYMENT_APPLY')
-            .reduce((s, t) => s + Number(t.amount), 0)
           const clientTotal = (client.payments ?? []).reduce((s, p) => s + Number(p.totalAmount), 0)
           const isExpanded = expandedClient === client.id
 
@@ -185,10 +178,7 @@ export default function TopicDetailPage() {
                 <div className="flex items-center gap-3">
                   <div className="text-left">
                     <div className="text-sm font-semibold text-slate-900">{fmt(clientTotal)}</div>
-                    {clientPaid > clientTotal
-                      ? <div className="text-xs text-emerald-600">זיכוי {fmt(clientPaid - clientTotal)}</div>
-                      : <div className="text-xs text-emerald-600">{fmt(clientPaid)} שולם</div>
-                    }
+                    <div className="text-xs text-slate-400">{client.payments?.length ?? 0} הזמנות</div>
                   </div>
                   <button
                     onClick={e => { e.stopPropagation(); openEditClient(client) }}

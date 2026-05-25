@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { Prisma, PaymentStatus } from '@prisma/client'
 import prisma from '../lib/prisma'
 import { authenticate, AuthRequest } from '../middleware/auth'
+import { refreshClientWorkOrderStatuses } from '../lib/balance'
 
 const router = Router()
 router.use(authenticate)
@@ -86,6 +87,7 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
     },
     include: { client: true, topic: true, transactions: true }
   })
+  await refreshClientWorkOrderStatuses(clientId)
   res.status(201).json(payment)
 })
 
@@ -121,6 +123,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response): Promise<void> => 
     return
   }
   await prisma.payment.delete({ where: { id: req.params.id } })
+  await refreshClientWorkOrderStatuses(existing.clientId)
   res.json({ ok: true })
 })
 

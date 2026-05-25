@@ -18,6 +18,7 @@ model User {
   clients              Client[]
   payments             Payment[]
   paymentTransactions  PaymentTransaction[]
+  clientPayments       ClientPayment[]
 }
 
 model Topic {
@@ -46,6 +47,7 @@ model Client {
   payments             Payment[]
   paymentTransactions  PaymentTransaction[]
   clientTopics         ClientTopic[]
+  clientPayments       ClientPayment[]
 }
 
 model Payment {
@@ -80,6 +82,19 @@ model PaymentTransaction {
   payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   client  Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ClientPayment {
+  id        String   @id @default(cuid())
+  clientId  String
+  userId    String
+  amount    Decimal  @db.Decimal(12, 2)
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ClientTopic {

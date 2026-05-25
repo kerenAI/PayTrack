@@ -8,6 +8,7 @@ import topicsRouter from './routes/topics'
 import clientsRouter from './routes/clients'
 import paymentsRouter from './routes/payments'
 import prepaymentsRouter from './routes/prepayments'
+import clientPaymentsRouter from './routes/clientPayments'
 import dashboardRouter from './routes/dashboard'
 import reportsRouter from './routes/reports'
 
@@ -23,6 +24,7 @@ app.use('/api/topics', topicsRouter)
 app.use('/api/clients', clientsRouter)
 app.use('/api/payments', paymentsRouter)
 app.use('/api/prepayments', prepaymentsRouter)
+app.use('/api/client-payments', clientPaymentsRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/reports', reportsRouter)
 

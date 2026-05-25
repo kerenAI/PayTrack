@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import prisma from '../lib/prisma'
 import { authenticate, AuthRequest } from '../middleware/auth'
+import { refreshClientWorkOrderStatuses } from '../lib/balance'
 
 const router = Router()
 router.use(authenticate)
@@ -42,30 +43,24 @@ router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   const client = await prisma.client.findFirst({
     where: { id: req.params.id, userId: req.userId },
     include: {
-      payments: {
-        include: { topic: true, transactions: true },
-        orderBy: { createdAt: 'desc' }
-      }
+      payments: { include: { topic: true }, orderBy: { createdAt: 'desc' } },
+      clientPayments: { orderBy: { date: 'desc' } }
     }
   })
-  if (!client) {
-    res.status(404).json({ error: 'Not found' })
-    return
-  }
+  if (!client) { res.status(404).json({ error: 'Not found' }); return }
 
-  const prepaidTotal = await prisma.paymentTransaction.aggregate({
-    where: { clientId: req.params.id, type: 'PREPAYMENT' },
-    _sum: { amount: true }
-  })
-  const prepaidApplied = await prisma.paymentTransaction.aggregate({
-    where: { clientId: req.params.id, type: 'PREPAYMENT_APPLY' },
-    _sum: { amount: true }
-  })
+  const totalOwed = client.payments.reduce((s, p) => s + Number(p.totalAmount), 0)
+  const totalPaid = client.clientPayments.reduce((s, p) => s + Number(p.amount), 0)
+  const coverageRatio = totalOwed > 0 ? totalPaid / totalOwed : 0
+  const balance = totalOwed - totalPaid
 
-  const prepaymentBalance =
-    Number(prepaidTotal._sum.amount ?? 0) - Number(prepaidApplied._sum.amount ?? 0)
+  const workOrders = client.payments.map(p => ({
+    ...p,
+    coveredAmount: Number(p.totalAmount) * Math.min(coverageRatio, 1),
+    coverageRatio
+  }))
 
-  res.json({ ...client, prepaymentBalance })
+  res.json({ ...client, workOrders, totalOwed, totalPaid, balance, coverageRatio })
 })
 
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {

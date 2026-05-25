@@ -68,7 +68,6 @@ export interface ClientPayment {
 
 export interface WorkOrder extends Payment {
   coveredAmount: number
-  coverageRatio: number
 }
 
 export interface ClientWithBalance extends Client {
@@ -77,7 +76,6 @@ export interface ClientWithBalance extends Client {
   totalOwed: number
   totalPaid: number
   balance: number
-  coverageRatio: number
 }
 
 export interface DashboardData {

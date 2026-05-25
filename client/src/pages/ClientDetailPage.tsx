@@ -50,7 +50,6 @@ export default function ClientDetailPage() {
   if (!client) return <div className="text-slate-400 text-sm" dir="rtl">טוען...</div>
 
   const balancePositive = client.balance <= 0
-  const coveragePct = Math.min(Math.round(client.coverageRatio * 100), 100)
 
   return (
     <div dir="rtl" className="space-y-6">
@@ -87,21 +86,6 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      {/* Coverage bar */}
-      {client.totalOwed > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <div className="flex justify-between text-xs text-slate-500 mb-2">
-            <span>כיסוי כולל</span>
-            <span>{coveragePct}%</span>
-          </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-500 rounded-full transition-all"
-              style={{ width: `${coveragePct}%` }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Work Orders */}
       <div className="space-y-3">
@@ -132,7 +116,6 @@ export default function ClientDetailPage() {
                   <th className="text-right px-4 py-3 font-medium text-slate-600">תיאור</th>
                   <th className="text-right px-4 py-3 font-medium text-slate-600">נושא</th>
                   <th className="text-right px-4 py-3 font-medium text-slate-600">סכום</th>
-                  <th className="text-right px-4 py-3 font-medium text-slate-600">כוסה</th>
                   <th className="text-right px-4 py-3 font-medium text-slate-600">סטטוס</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -147,7 +130,6 @@ export default function ClientDetailPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-500">{wo.topic?.name}</td>
                     <td className="px-4 py-3 font-medium text-slate-900">{fmt(Number(wo.totalAmount))}</td>
-                    <td className="px-4 py-3 text-emerald-600">{fmt(wo.coveredAmount)}</td>
                     <td className="px-4 py-3"><StatusBadge status={wo.status} /></td>
                     <td className="px-4 py-3">
                       <button onClick={() => deleteWorkOrder(wo.id)}

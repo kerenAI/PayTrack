@@ -49,18 +49,23 @@ router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
   })
   if (!client) { res.status(404).json({ error: 'Not found' }); return }
 
-  const totalOwed = client.payments.reduce((s, p) => s + Number(p.totalAmount), 0)
+  const sortedWorkOrders = [...client.payments].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )
+  const totalOwed = sortedWorkOrders.reduce((s, p) => s + Number(p.totalAmount), 0)
   const totalPaid = client.clientPayments.reduce((s, p) => s + Number(p.amount), 0)
-  const coverageRatio = totalOwed > 0 ? totalPaid / totalOwed : 0
   const balance = totalOwed - totalPaid
 
-  const workOrders = client.payments.map(p => ({
-    ...p,
-    coveredAmount: Number(p.totalAmount) * Math.min(coverageRatio, 1),
-    coverageRatio
-  }))
+  // FIFO coverage per work order
+  let remaining = totalPaid
+  const workOrders = sortedWorkOrders.map(p => {
+    const amount = Number(p.totalAmount)
+    const coveredAmount = Math.min(remaining, amount)
+    remaining = Math.max(0, remaining - amount)
+    return { ...p, coveredAmount }
+  })
 
-  res.json({ ...client, workOrders, totalOwed, totalPaid, balance, coverageRatio })
+  res.json({ ...client, workOrders, totalOwed, totalPaid, balance })
 })
 
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {

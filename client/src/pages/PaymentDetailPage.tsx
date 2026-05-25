@@ -59,10 +59,10 @@ export default function PaymentDetailPage() {
   if (!payment) return <div className="text-slate-400 text-sm" dir="rtl">טוען...</div>
 
   const totalAmount = Number(payment.totalAmount)
-  const coverageRatio = clientBalance?.coverageRatio ?? 0
-  const coveredAmount = totalAmount * Math.min(coverageRatio, 1)
+  const wo = clientBalance?.workOrders?.find(w => w.id === id)
+  const coveredAmount = wo?.coveredAmount ?? 0
   const remaining = totalAmount - coveredAmount
-  const coveragePct = Math.min(Math.round(coverageRatio * 100), 100)
+  const coveragePct = totalAmount > 0 ? Math.min(Math.round((coveredAmount / totalAmount) * 100), 100) : 0
 
   return (
     <div dir="rtl" className="space-y-5">
@@ -152,7 +152,7 @@ export default function PaymentDetailPage() {
         </div>
         {clientBalance && (
           <p className="text-xs text-slate-400 mt-2">
-            סה"כ שולם ללקוח: {fmt(clientBalance.totalPaid)} מתוך {fmt(clientBalance.totalOwed)}
+            מאזן לקוח: {fmt(clientBalance.totalPaid)} שולם מתוך {fmt(clientBalance.totalOwed)} · יתרה {fmt(Math.abs(clientBalance.balance))} {clientBalance.balance > 0 ? 'חוב' : 'זיכוי'}
           </p>
         )}
       </div>

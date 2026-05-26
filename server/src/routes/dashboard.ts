@@ -13,19 +13,18 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
   const [totalIncome, pendingCount, overdueCount, monthlyTotals, woClientIds, cpClientIds] = await Promise.all([
-    prisma.paymentTransaction.aggregate({
-      where: { userId, type: { in: ['PAYMENT', 'PREPAYMENT_APPLY'] } },
-      _sum: { amount: true }
+    prisma.payment.aggregate({
+      where: { userId },
+      _sum: { totalAmount: true }
     }),
-    prisma.payment.count({ where: { userId, status: 'PENDING' } }),
+    prisma.payment.count({ where: { userId, status: { in: ['PENDING', 'PARTIAL'] } } }),
     prisma.payment.count({ where: { userId, status: 'OVERDUE' } }),
-    prisma.paymentTransaction.findMany({
+    prisma.payment.findMany({
       where: {
         userId,
-        type: { in: ['PAYMENT', 'PREPAYMENT_APPLY'] },
-        date: { gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) }
+        createdAt: { gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) }
       },
-      select: { amount: true, date: true }
+      select: { totalAmount: true, createdAt: true }
     }),
     // get client IDs that have work orders — no OR, no JOIN duplicates
     prisma.payment.findMany({ where: { userId }, select: { clientId: true }, distinct: ['clientId'] }),
@@ -51,8 +50,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     monthMap[key] = 0
   }
   for (const tx of monthlyTotals) {
-    const key = `${tx.date.getFullYear()}-${String(tx.date.getMonth() + 1).padStart(2, '0')}`
-    if (key in monthMap) monthMap[key] += Number(tx.amount)
+    const key = `${tx.createdAt.getFullYear()}-${String(tx.createdAt.getMonth() + 1).padStart(2, '0')}`
+    if (key in monthMap) monthMap[key] += Number(tx.totalAmount)
   }
 
   // Open prepayments
@@ -63,13 +62,12 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const openPrepayments = Number(prepaidTotal._sum.amount ?? 0) - Number(prepaidApplied._sum.amount ?? 0)
 
   // This month income
-  const thisMonthTx = await prisma.paymentTransaction.aggregate({
+  const thisMonthTx = await prisma.payment.aggregate({
     where: {
       userId,
-      type: { in: ['PAYMENT', 'PREPAYMENT_APPLY'] },
-      date: { gte: startOfMonth, lte: endOfMonth }
+      createdAt: { gte: startOfMonth, lte: endOfMonth }
     },
-    _sum: { amount: true }
+    _sum: { totalAmount: true }
   })
 
   // aggregate totals per client using groupBy — one row per client, no duplicates
@@ -93,8 +91,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   })
 
   res.json({
-    totalIncome: Number(totalIncome._sum.amount ?? 0),
-    thisMonthIncome: Number(thisMonthTx._sum.amount ?? 0),
+    totalIncome: Number(totalIncome._sum.totalAmount ?? 0),
+    thisMonthIncome: Number(thisMonthTx._sum.totalAmount ?? 0),
     pendingCount,
     overdueCount,
     openPrepayments,

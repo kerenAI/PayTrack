@@ -11,7 +11,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const { clientId } = req.query
   const payments = await prisma.clientPayment.findMany({
     where: { userId: req.userId, ...(clientId ? { clientId: clientId as string } : {}) },
-    orderBy: { date: 'desc' }
+    orderBy: { date: 'desc' },
+    include: { client: true }
   })
   res.json(payments)
 })

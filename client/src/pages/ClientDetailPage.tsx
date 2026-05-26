@@ -148,7 +148,7 @@ export default function ClientDetailPage() {
       {/* Client Payments */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium text-slate-800">תשלומים שהתקבלו</h3>
+          <h3 className="font-medium text-slate-800">הכנסות</h3>
           <button onClick={() => setShowPaymentForm(!showPaymentForm)}
             className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700">
             <Plus size={14} /> הוסף תשלום

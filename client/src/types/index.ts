@@ -78,12 +78,93 @@ export interface ClientWithBalance extends Client {
   balance: number
 }
 
+export interface SupplierPayment {
+  id: string
+  supplierId: string
+  userId: string
+  amount: string
+  date: string
+  notes?: string
+  createdAt: string
+}
+
+export interface Supplier {
+  id: string
+  userId: string
+  categoryId?: string | null
+  name: string
+  contactEmail?: string
+  phone?: string
+  notes?: string
+  createdAt: string
+  _count?: { expenses: number }
+}
+
+export interface SupplierWithBalance extends Supplier {
+  expenses: Expense[]
+  supplierPayments: SupplierPayment[]
+  totalInvoiced: number
+  totalPaid: number
+  balance: number
+}
+
+export interface ExpenseCategoryWithSuppliers extends ExpenseCategory {
+  suppliers: SupplierWithBalance[]
+}
+
+export interface ExpenseCategory {
+  id: string
+  userId: string
+  name: string
+  color: string
+  createdAt: string
+  _count?: { expenses: number }
+}
+
+export interface Expense {
+  id: string
+  userId: string
+  supplierId?: string | null
+  categoryId?: string | null
+  amount: string
+  date: string
+  description?: string
+  notes?: string
+  createdAt: string
+  supplier?: Supplier
+  category?: ExpenseCategory
+}
+
+export interface SupplierBalanceSummary {
+  supplierId: string
+  name: string
+  totalInvoiced: number
+  totalPaid: number
+  balance: number
+}
+
+export interface ExpenseDashboard {
+  totalAllTime: number
+  totalThisMonth: number
+  countThisMonth: number
+  monthlyChart: { month: string; total: number }[]
+  recentSuppliers: SupplierBalanceSummary[]
+}
+
+export interface ClientBalanceSummary {
+  id: string
+  name: string
+  totalOwed: number
+  totalPaid: number
+  balance: number
+}
+
 export interface DashboardData {
   totalIncome: number
   thisMonthIncome: number
   pendingCount: number
   overdueCount: number
   openPrepayments: number
-  recentPayments: Payment[]
+  recentClients: ClientBalanceSummary[]
   monthlyChart: { month: string; total: number }[]
 }

@@ -12,19 +12,13 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-  const [totalIncome, pendingCount, overdueCount, recentPayments, monthlyTotals] = await Promise.all([
+  const [totalIncome, pendingCount, overdueCount, monthlyTotals, woClientIds, cpClientIds] = await Promise.all([
     prisma.paymentTransaction.aggregate({
       where: { userId, type: { in: ['PAYMENT', 'PREPAYMENT_APPLY'] } },
       _sum: { amount: true }
     }),
     prisma.payment.count({ where: { userId, status: 'PENDING' } }),
     prisma.payment.count({ where: { userId, status: 'OVERDUE' } }),
-    prisma.payment.findMany({
-      where: { userId },
-      include: { client: true, topic: true },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    }),
     prisma.paymentTransaction.findMany({
       where: {
         userId,
@@ -32,14 +26,33 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         date: { gte: new Date(now.getFullYear(), now.getMonth() - 5, 1) }
       },
       select: { amount: true, date: true }
-    })
+    }),
+    // get client IDs that have work orders — no OR, no JOIN duplicates
+    prisma.payment.findMany({ where: { userId }, select: { clientId: true }, distinct: ['clientId'] }),
+    prisma.clientPayment.findMany({ where: { userId }, select: { clientId: true }, distinct: ['clientId'] })
   ])
 
-  // Group monthly totals
+  // union of client IDs that have any activity
+  const activeIds = [...new Set([...woClientIds.map(r => r.clientId), ...cpClientIds.map(r => r.clientId)])]
+
+  // fetch the 8 most recently created active clients — plain findMany, no OR
+  const recentClientRows = await prisma.client.findMany({
+    where: { userId, id: { in: activeIds } },
+    orderBy: { createdAt: 'desc' },
+    take: 8,
+    select: { id: true, name: true }
+  })
+
+  // initialise all 6 months with 0 so every month appears on the X axis
   const monthMap: Record<string, number> = {}
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    monthMap[key] = 0
+  }
   for (const tx of monthlyTotals) {
     const key = `${tx.date.getFullYear()}-${String(tx.date.getMonth() + 1).padStart(2, '0')}`
-    monthMap[key] = (monthMap[key] ?? 0) + Number(tx.amount)
+    if (key in monthMap) monthMap[key] += Number(tx.amount)
   }
 
   // Open prepayments
@@ -59,13 +72,33 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     _sum: { amount: true }
   })
 
+  // aggregate totals per client using groupBy — one row per client, no duplicates
+  const clientIds = recentClientRows.map(c => c.id)
+  const [woTotals, cpTotals] = await Promise.all([
+    prisma.payment.groupBy({
+      by: ['clientId'],
+      where: { clientId: { in: clientIds } },
+      _sum: { totalAmount: true }
+    }),
+    prisma.clientPayment.groupBy({
+      by: ['clientId'],
+      where: { clientId: { in: clientIds } },
+      _sum: { amount: true }
+    })
+  ])
+  const recentClientsWithBalance = recentClientRows.map(c => {
+    const totalOwed = Number(woTotals.find(r => r.clientId === c.id)?._sum.totalAmount ?? 0)
+    const totalPaid = Number(cpTotals.find(r => r.clientId === c.id)?._sum.amount ?? 0)
+    return { id: c.id, name: c.name, totalOwed, totalPaid, balance: totalOwed - totalPaid }
+  })
+
   res.json({
     totalIncome: Number(totalIncome._sum.amount ?? 0),
     thisMonthIncome: Number(thisMonthTx._sum.amount ?? 0),
     pendingCount,
     overdueCount,
     openPrepayments,
-    recentPayments,
+    recentClients: recentClientsWithBalance,
     monthlyChart: Object.entries(monthMap).map(([month, total]) => ({ month, total })).sort((a, b) => a.month.localeCompare(b.month))
   })
 })

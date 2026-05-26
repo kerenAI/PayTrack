@@ -11,6 +11,10 @@ import prepaymentsRouter from './routes/prepayments'
 import clientPaymentsRouter from './routes/clientPayments'
 import dashboardRouter from './routes/dashboard'
 import reportsRouter from './routes/reports'
+import suppliersRouter from './routes/suppliers'
+import expenseCategoriesRouter from './routes/expenseCategories'
+import expensesRouter from './routes/expenses'
+import supplierPaymentsRouter from './routes/supplierPayments'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -27,6 +31,10 @@ app.use('/api/prepayments', prepaymentsRouter)
 app.use('/api/client-payments', clientPaymentsRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/reports', reportsRouter)
+app.use('/api/suppliers', suppliersRouter)
+app.use('/api/expense-categories', expenseCategoriesRouter)
+app.use('/api/expenses', expensesRouter)
+app.use('/api/supplier-payments', supplierPaymentsRouter)
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)

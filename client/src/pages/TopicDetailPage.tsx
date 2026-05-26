@@ -2,46 +2,50 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowRight, Plus, Users, Pencil } from 'lucide-react'
 import api from '../api'
-import type { Topic, Client, Payment } from '../types'
-import StatusBadge from '../components/StatusBadge'
-import PaymentForm from '../components/PaymentForm'
+import type { Topic, Client, Payment, ClientPayment } from '../types'
 
 const fmt = (n: number) => `₪${n.toLocaleString('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
 
-interface ClientWithPayments extends Client {
+interface ClientWithData extends Client {
   payments: Payment[]
+  clientPayments: ClientPayment[]
 }
 
 export default function TopicDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [topic, setTopic] = useState<Topic | null>(null)
-  const [clients, setClients] = useState<ClientWithPayments[]>([])
+  const [clients, setClients] = useState<ClientWithData[]>([])
   const [expandedClient, setExpandedClient] = useState<string | null>(null)
-  const [showPaymentForm, setShowPaymentForm] = useState<string | null>(null)
-  const [allTopics, setAllTopics] = useState<Topic[]>([])
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [newClientEmail, setNewClientEmail] = useState('')
   const [newClientPhone, setNewClientPhone] = useState('')
-  const [editingClient, setEditingClient] = useState<ClientWithPayments | null>(null)
+  const [editingClient, setEditingClient] = useState<ClientWithData | null>(null)
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editNotes, setEditNotes] = useState('')
 
+  // add-payment form state per client
+  const [showPayForm, setShowPayForm] = useState<string | null>(null)
+  const [payAmount, setPayAmount] = useState('')
+  const [payDate, setPayDate] = useState(new Date().toISOString().slice(0, 10))
+  const [payNotes, setPayNotes] = useState('')
+
   const load = async () => {
     const [topicsRes, clientsRes] = await Promise.all([
       api.get<Topic[]>('/topics'),
-      api.get<ClientWithPayments[]>(`/clients?topicId=${id}`)
+      api.get<ClientWithData[]>(`/clients?topicId=${id}`)
     ])
     const found = topicsRes.data.find(t => t.id === id)
     setTopic(found ?? null)
     setClients(clientsRes.data)
-    setAllTopics(topicsRes.data)
   }
 
-  const openEditClient = (c: ClientWithPayments) => {
+  useEffect(() => { load() }, [id])
+
+  const openEditClient = (c: ClientWithData) => {
     setEditingClient(c)
     setEditName(c.name)
     setEditEmail(c.contactEmail ?? '')
@@ -58,23 +62,30 @@ export default function TopicDetailPage() {
 
   const createClient = async () => {
     if (!newClientName.trim()) return
-    const res = await api.post<Client>('/clients', { name: newClientName, contactEmail: newClientEmail, phone: newClientPhone, topicId: id })
-    const newClient: ClientWithPayments = { ...res.data, payments: [] }
-    setClients(prev => [newClient, ...prev])
-    setExpandedClient(newClient.id)
-    setShowPaymentForm(newClient.id)
+    await api.post<Client>('/clients', { name: newClientName, contactEmail: newClientEmail, phone: newClientPhone, topicId: id })
     setShowNewClient(false)
     setNewClientName('')
     setNewClientEmail('')
     setNewClientPhone('')
+    load()
   }
 
-  useEffect(() => { load() }, [id])
+  const openPayForm = (clientId: string) => {
+    setShowPayForm(clientId)
+    setPayAmount('')
+    setPayDate(new Date().toISOString().slice(0, 10))
+    setPayNotes('')
+  }
+
+  const addPayment = async (clientId: string) => {
+    if (!payAmount) return
+    await api.post('/client-payments', { clientId, amount: Number(payAmount), date: payDate, notes: payNotes })
+    setShowPayForm(null)
+    load()
+  }
 
   const totalInTopic = clients.reduce((sum, c) =>
     sum + (c.payments ?? []).reduce((s, p) => s + Number(p.totalAmount), 0), 0)
-
-  const paidInTopic = 0 // balance is now global per client, shown on client detail page
 
   if (!topic) return <div className="text-slate-400 text-sm" dir="rtl">טוען...</div>
 
@@ -91,18 +102,14 @@ export default function TopicDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <div className="text-xl font-bold text-slate-900">{clients.length}</div>
           <div className="text-xs text-slate-500 mt-0.5">לקוחות</div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
           <div className="text-xl font-bold text-slate-900">{fmt(totalInTopic)}</div>
-          <div className="text-xs text-slate-500 mt-0.5">סך חיובים</div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <div className="text-xl font-bold text-emerald-600">{fmt(paidInTopic)}</div>
-          <div className="text-xs text-slate-500 mt-0.5">סך שולם</div>
+          <div className="text-xs text-slate-500 mt-0.5">סך חיובים בנושא</div>
         </div>
       </div>
 
@@ -129,13 +136,9 @@ export default function TopicDetailPage() {
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">טלפון</label>
-                <input
-                  value={newClientPhone}
-                  onChange={e => setNewClientPhone(e.target.value)}
+                <input value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)}
                   onPaste={e => { e.preventDefault(); setNewClientPhone(e.clipboardData.getData('text')) }}
-                  dir="ltr"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+                  dir="ltr" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
             <div className="flex gap-2">
@@ -153,8 +156,9 @@ export default function TopicDetailPage() {
         )}
 
         {clients.map(client => {
-          const clientTotal = (client.payments ?? []).reduce((s, p) => s + Number(p.totalAmount), 0)
+          const workOrderTotal = (client.payments ?? []).reduce((s, p) => s + Number(p.totalAmount), 0)
           const isExpanded = expandedClient === client.id
+          const clientPayments = client.clientPayments ?? []
 
           return (
             <div key={client.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -170,15 +174,15 @@ export default function TopicDetailPage() {
                   <div>
                     <div className="font-medium text-slate-900">{client.name}</div>
                     <div className="text-xs text-slate-400">
-                      {client.payments?.length ?? 0} תשלומים
+                      {client.payments?.length ?? 0} הזמנות · {clientPayments.length} תשלומים
                       {client.phone && <span className="mr-2">{client.phone}</span>}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-left">
-                    <div className="text-sm font-semibold text-slate-900">{fmt(clientTotal)}</div>
-                    <div className="text-xs text-slate-400">{client.payments?.length ?? 0} הזמנות</div>
+                    <div className="text-sm font-semibold text-slate-900">{fmt(workOrderTotal)}</div>
+                    <div className="text-xs text-slate-400">חיובים בנושא</div>
                   </div>
                   <button
                     onClick={e => { e.stopPropagation(); openEditClient(client) }}
@@ -205,13 +209,9 @@ export default function TopicDetailPage() {
                     </div>
                     <div>
                       <label className="block text-xs text-slate-500 mb-1">טלפון</label>
-                      <input
-                        value={editPhone}
-                        onChange={e => setEditPhone(e.target.value)}
+                      <input value={editPhone} onChange={e => setEditPhone(e.target.value)}
                         onPaste={e => { e.preventDefault(); setEditPhone(e.clipboardData.getData('text')) }}
-                        dir="ltr"
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                      />
+                        dir="ltr" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" />
                     </div>
                     <div>
                       <label className="block text-xs text-slate-500 mb-1">הערות</label>
@@ -225,49 +225,66 @@ export default function TopicDetailPage() {
                 </div>
               )}
 
-              {/* Expanded payments */}
+              {/* Expanded: payments received */}
               {isExpanded && (
                 <div className="border-t border-slate-100 p-4 space-y-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-600">תשלומים</span>
-                    <button
-                      onClick={() => setShowPaymentForm(showPaymentForm === client.id ? null : client.id)}
-                      className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-indigo-700"
-                    >
-                      <Plus size={12} /> תשלום חדש
-                    </button>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-slate-600">תשלומים שהתקבלו</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/clients/${client.id}`)}
+                        className="text-xs text-indigo-600 hover:underline"
+                      >
+                        כל פרטי הלקוח ←
+                      </button>
+                      <button
+                        onClick={() => openPayForm(client.id)}
+                        className="flex items-center gap-1 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-emerald-700"
+                      >
+                        <Plus size={12} /> הוסף תשלום
+                      </button>
+                    </div>
                   </div>
 
-                  {showPaymentForm === client.id && (
-                    <PaymentForm
-                      clientId={client.id}
-                      topics={allTopics}
-                      defaultTopicId={id}
-                      onSaved={() => { setShowPaymentForm(null); load() }}
-                      onCancel={() => setShowPaymentForm(null)}
-                    />
-                  )}
-
-                  {(client.payments ?? []).length === 0 && (
-                    <p className="text-slate-400 text-xs">אין תשלומים עדיין.</p>
-                  )}
-
-                  {(client.payments ?? []).map(p => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0 cursor-pointer hover:text-indigo-600"
-                      onClick={() => navigate(`/payments/${p.id}`)}
-                    >
-                      <div>
-                        <div className="text-sm text-slate-800">{p.description || '—'}</div>
-                        {p.dueDate && <div className="text-xs text-slate-400">{new Date(p.dueDate).toLocaleDateString('he-IL')}</div>}
+                  {showPayForm === client.id && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1">סכום *</label>
+                          <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)}
+                            dir="ltr" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" placeholder="0" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1">תאריך *</label>
+                          <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1">הערות</label>
+                          <input value={payNotes} onChange={e => setPayNotes(e.target.value)}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">{fmt(Number(p.totalAmount))}</span>
-                        <StatusBadge status={p.status} />
+                      <div className="flex gap-2">
+                        <button onClick={() => addPayment(client.id)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700">שמור</button>
+                        <button onClick={() => setShowPayForm(null)} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm hover:bg-slate-200">ביטול</button>
                       </div>
                     </div>
-                  ))}
+                  )}
+
+                  {clientPayments.length === 0 ? (
+                    <p className="text-slate-400 text-xs">אין תשלומים עדיין.</p>
+                  ) : (
+                    clientPayments.map(cp => (
+                      <div key={cp.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                        <div>
+                          <div className="text-xs text-slate-400">{new Date(cp.date).toLocaleDateString('he-IL')}</div>
+                          {cp.notes && <div className="text-xs text-slate-500">{cp.notes}</div>}
+                        </div>
+                        <span className="text-sm font-medium text-emerald-700">{fmt(Number(cp.amount))}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>

@@ -11,6 +11,13 @@ import ClientDetailPage from './pages/ClientDetailPage'
 import PaymentsPage from './pages/PaymentsPage'
 import PaymentDetailPage from './pages/PaymentDetailPage'
 import ReportsPage from './pages/ReportsPage'
+import ExpenseDashboardPage from './pages/ExpenseDashboardPage'
+import SuppliersPage from './pages/SuppliersPage'
+import ExpenseTopicsPage from './pages/ExpenseTopicsPage'
+import ExpenseTopicDetailPage from './pages/ExpenseTopicDetailPage'
+import ExpensesListPage from './pages/ExpensesListPage'
+import ExpenseReportsPage from './pages/ExpenseReportsPage'
+import TipsPage from './pages/TipsPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -35,6 +42,13 @@ function AppRoutes() {
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/payments/:id" element={<PaymentDetailPage />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/expenses/dashboard" element={<ExpenseDashboardPage />} />
+              <Route path="/expenses" element={<ExpensesListPage />} />
+              <Route path="/suppliers" element={<SuppliersPage />} />
+              <Route path="/expense-topics" element={<ExpenseTopicsPage />} />
+              <Route path="/expense-topics/:id" element={<ExpenseTopicDetailPage />} />
+              <Route path="/expense-reports" element={<ExpenseReportsPage />} />
+              <Route path="/tips" element={<TipsPage />} />
             </Routes>
           </Layout>
         </PrivateRoute>

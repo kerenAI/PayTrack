@@ -10,21 +10,23 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const { topicId } = req.query
 
   if (topicId) {
+    // collect client IDs from both sources separately — no OR to avoid JOIN duplicates
+    const [fromTopics, fromPayments] = await Promise.all([
+      prisma.clientTopic.findMany({ where: { topicId: topicId as string }, select: { clientId: true } }),
+      prisma.payment.findMany({ where: { topicId: topicId as string, userId: req.userId }, select: { clientId: true }, distinct: ['clientId'] })
+    ])
+    const clientIds = [...new Set([...fromTopics.map(r => r.clientId), ...fromPayments.map(r => r.clientId)])]
+
     const clients = await prisma.client.findMany({
-      where: {
-        userId: req.userId,
-        OR: [
-          { clientTopics: { some: { topicId: topicId as string } } },
-          { payments: { some: { topicId: topicId as string } } }
-        ]
-      },
+      where: { userId: req.userId, id: { in: clientIds } },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { payments: true } },
         payments: {
           where: { topicId: topicId as string },
           include: { transactions: true }
-        }
+        },
+        clientPayments: { orderBy: { date: 'desc' } }
       }
     })
     res.json(clients)
@@ -34,9 +36,22 @@ router.get('/', async (req: AuthRequest, res: Response) => {
   const clients = await prisma.client.findMany({
     where: { userId: req.userId },
     orderBy: { createdAt: 'desc' },
-    include: { _count: { select: { payments: true } } }
+    include: {
+      _count: { select: { payments: true } },
+      clientPayments: { select: { id: true, amount: true, date: true, notes: true }, orderBy: { date: 'desc' } }
+    }
   })
-  res.json(clients)
+  const clientIds = clients.map(c => c.id)
+  const [woTotals, cpTotals] = await Promise.all([
+    prisma.payment.groupBy({ by: ['clientId'], where: { clientId: { in: clientIds } }, _sum: { totalAmount: true } }),
+    prisma.clientPayment.groupBy({ by: ['clientId'], where: { clientId: { in: clientIds } }, _sum: { amount: true } })
+  ])
+  const withBalance = clients.map(c => {
+    const totalOwed = Number(woTotals.find(r => r.clientId === c.id)?._sum.totalAmount ?? 0)
+    const totalPaid = Number(cpTotals.find(r => r.clientId === c.id)?._sum.amount ?? 0)
+    return { ...c, totalOwed, totalPaid, balance: totalOwed - totalPaid }
+  })
+  res.json(withBalance)
 })
 
 router.get('/:id', async (req: AuthRequest, res: Response): Promise<void> => {

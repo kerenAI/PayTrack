@@ -19,6 +19,10 @@ model User {
   payments             Payment[]
   paymentTransactions  PaymentTransaction[]
   clientPayments       ClientPayment[]
+  suppliers            Supplier[]
+  expenseCategories    ExpenseCategory[]
+  expenses             Expense[]
+  supplierPayments     SupplierPayment[]
 }
 
 model Topic {
@@ -106,6 +110,63 @@ model ClientTopic {
   topic  Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
   @@id([clientId, topicId])
+}
+
+model Supplier {
+  id           String    @id @default(cuid())
+  userId       String
+  categoryId   String?
+  name         String
+  contactEmail String?
+  phone        String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category         ExpenseCategory?  @relation(fields: [categoryId], references: [id])
+  expenses         Expense[]
+  supplierPayments SupplierPayment[]
+}
+
+model SupplierPayment {
+  id         String   @id @default(cuid())
+  userId     String
+  supplierId String
+  amount     Decimal  @db.Decimal(12, 2)
+  date       DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+}
+
+model ExpenseCategory {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  color     String    @default("#f59e0b")
+  createdAt DateTime  @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses  Expense[]
+  suppliers Supplier[]
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  supplierId  String?
+  categoryId  String?
+  amount      Decimal  @db.Decimal(12, 2)
+  date        DateTime
+  description String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplier Supplier?        @relation(fields: [supplierId], references: [id])
+  category ExpenseCategory? @relation(fields: [categoryId], references: [id])
 }
 
 enum PaymentStatus {
